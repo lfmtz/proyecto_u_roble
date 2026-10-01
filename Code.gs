@@ -78,7 +78,6 @@ function doPost(e) {
           data.tipo
         ]]);
       } else {
-        // Búsqueda por coincidencia
         const sData = targetSheet.getDataRange().getValues();
         for (let i = 1; i < sData.length; i++) {
           if (sData[i][2] === data.oldConcepto || (sData[i][0] === data.mes && sData[i][1] == data.anio)) {
@@ -101,7 +100,6 @@ function doPost(e) {
       if (rowNum && rowNum > 1 && rowNum <= targetSheet.getLastRow()) {
         targetSheet.deleteRow(rowNum);
       } else {
-        // Fallback: buscar por coincidencia de concepto y monto
         const sData = targetSheet.getDataRange().getValues();
         for (let i = sData.length - 1; i >= 1; i--) {
           if (sData[i][2] === data.concepto && Number(sData[i][3]) === Number(data.monto)) {
@@ -134,14 +132,16 @@ function doPost(e) {
         "App Web (Fijo)"
       ]);
 
-    // 6. REGISTRAR EN FONDO ESPECIAL
+    // 6. REGISTRAR EN FONDO DE PROYECTO (CON DEPTO Y MODO)
     } else if (action === "registrar_fondo") {
       targetSheet = ss.getSheetByName("proyecto_fondo");
       const rowData = [
         data.proyecto || "Cambio de tanque de gas",
-        data.tipo,
+        data.tipo, // 'aportacion' o 'gasto'
         data.concepto,
-        Number(data.monto)
+        Number(data.monto),
+        data.depto ? String(data.depto) : "",
+        data.modo || "independiente" // 'independiente' o 'mantenimiento'
       ];
       targetSheet.appendRow(rowData);
 
@@ -179,7 +179,6 @@ function doPost(e) {
     // 8. AUTENTICACIÓN / LOGIN DE USUARIOS
     } else if (action === "login") {
       let userSheet = ss.getSheetByName("usuarios");
-      // Si la pestaña usuarios aún no existe, crearla con usuario inicial
       if (!userSheet) {
         userSheet = ss.insertSheet("usuarios");
         userSheet.appendRow(["usuario", "password", "nombre", "rol"]);

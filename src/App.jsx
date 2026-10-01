@@ -5,12 +5,15 @@ import Dashboard from './components/Dashboard';
 import VecinosDirectory from './components/VecinosDirectory';
 import EgresosList from './components/EgresosList';
 import FondoEspecial from './components/FondoEspecial';
+import ProyectosManager from './components/ProyectosManager';
 import MonthlyStatementPrint from './components/MonthlyStatementPrint';
 import ModalRegistrarPago from './components/ModalRegistrarPago';
 import ModalRegistrarEgreso from './components/ModalRegistrarEgreso';
 import ModalEditarEgreso from './components/ModalEditarEgreso';
 import ModalGastosFijosMes from './components/ModalGastosFijosMes';
 import ModalRegistrarFondo from './components/ModalRegistrarFondo';
+import ModalCrearProyecto from './components/ModalCrearProyecto';
+import ModalAportarProyecto from './components/ModalAportarProyecto';
 import ModalDeptoHistorial from './components/ModalDeptoHistorial';
 import ModalEditarVecino from './components/ModalEditarVecino';
 import LoginScreen from './components/LoginScreen';
@@ -85,7 +88,7 @@ function MainContent() {
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'vecinos' && <VecinosDirectory />}
         {activeTab === 'egresos' && <EgresosList />}
-        {activeTab === 'fondo' && <FondoEspecial />}
+        {(activeTab === 'proyectos' || activeTab === 'fondo') && <ProyectosManager />}
         {activeTab === 'imprimir' && <MonthlyStatementPrint />}
       </main>
 
@@ -147,6 +150,8 @@ function MainContent() {
       {modalState.type === 'editar_egreso' && <ModalEditarEgreso />}
       {modalState.type === 'gastos_fijos_mes' && <ModalGastosFijosMes />}
       {modalState.type === 'fondo' && <ModalRegistrarFondo />}
+      {modalState.type === 'crear_proyecto' && <ModalCrearProyecto />}
+      {modalState.type === 'aportar_proyecto' && <ModalAportarProyecto />}
       {modalState.type === 'depto_historial' && <ModalDeptoHistorial />}
       {modalState.type === 'editar_vecino' && <ModalEditarVecino />}
     </div>

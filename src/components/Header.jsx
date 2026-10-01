@@ -164,15 +164,15 @@ export default function Header() {
           </button>
 
           <button
-            onClick={() => setActiveTab('fondo')}
+            onClick={() => setActiveTab('proyectos')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-              activeTab === 'fondo'
+              activeTab === 'proyectos'
                 ? 'bg-emerald-50 text-emerald-700 font-semibold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <Flame className="w-4 h-4 text-orange-500" />
-            Fondo Gas
+            Proyectos
           </button>
 
           <button

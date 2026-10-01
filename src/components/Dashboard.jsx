@@ -24,6 +24,7 @@ export default function Dashboard() {
     monthlyEgresos, 
     metrics, 
     fondoMetrics, 
+    activeProjectStats,
     openModal, 
     setActiveTab 
   } = useApp();
@@ -135,23 +136,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 4. Fondo de Proyecto Gas */}
+        {/* 4. Fondo de Proyecto Activo */}
         <div 
-          onClick={() => setActiveTab('fondo')}
+          onClick={() => setActiveTab('proyectos')}
           className="bg-white p-4 rounded-xl border border-orange-100 hover:border-orange-300 shadow-xs flex flex-col justify-between cursor-pointer group transition-all"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-            <span className="flex items-center gap-1 text-orange-700 font-semibold">
-              <Flame className="w-3.5 h-3.5" /> Fondo Gas
+            <span className="flex items-center gap-1 text-orange-700 font-semibold truncate pr-1">
+              <Flame className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">{activeProjectStats?.nombre || 'Proyectos'}</span>
             </span>
-            <ArrowUpRight className="w-4 h-4 text-orange-400 group-hover:text-orange-600 transition-colors" />
+            <ArrowUpRight className="w-4 h-4 text-orange-400 group-hover:text-orange-600 transition-colors flex-shrink-0" />
           </div>
           <div className="mt-3">
             <div className="text-xl sm:text-2xl font-black text-slate-900 font-mono-numbers">
-              {formatCurrency(fondoMetrics.saldoDisponible)}
+              {formatCurrency(activeProjectStats?.saldoDisponible ?? fondoMetrics?.saldoDisponible ?? 0)}
             </div>
-            <div className="mt-1 text-[11px] sm:text-xs text-slate-500 font-medium">
-              Disponible de {formatCurrency(fondoMetrics.totalAportado)}
+            <div className="mt-1 text-[11px] sm:text-xs text-slate-500 font-medium truncate">
+              {activeProjectStats?.meta 
+                ? `Meta: ${formatCurrency(activeProjectStats.meta)}` 
+                : `Aportado: ${formatCurrency(activeProjectStats?.totalAportado ?? fondoMetrics?.totalAportado ?? 0)}`
+              }
             </div>
           </div>
         </div>

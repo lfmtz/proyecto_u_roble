@@ -11,6 +11,7 @@ export default function MonthlyStatementPrint() {
     monthlyEgresos, 
     metrics, 
     fondoMetrics,
+    activeProjectStats,
     setActiveTab 
   } = useApp();
 
@@ -250,27 +251,37 @@ export default function MonthlyStatementPrint() {
                     </tfoot>
                   </table>
 
-                  {/* Estado del Fondo Especial de Gas */}
-                  <div className="bg-orange-50/70 border border-orange-200 p-2 rounded text-[9px] mb-3">
-                    <div className="font-bold text-orange-950 uppercase mb-0.5 flex justify-between">
-                      <span>Fondo Especial: Tanque de Gas</span>
-                      <span className="text-orange-700">Meta/Proyecto</span>
+                  {/* Estado del Proyecto Activo Seleccionado */}
+                  {activeProjectStats ? (
+                    <div className="bg-orange-50/70 border border-orange-200 p-2 rounded text-[9px] mb-3">
+                      <div className="font-bold text-orange-950 uppercase mb-0.5 flex justify-between items-center">
+                        <span className="truncate pr-2">Proyecto: {activeProjectStats.nombre}</span>
+                        {activeProjectStats.meta > 0 && (
+                          <span className="text-orange-700 font-semibold text-[8px] whitespace-nowrap">
+                            Meta: {formatCurrency(activeProjectStats.meta)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-0.5 text-slate-700">
+                        <div className="flex justify-between">
+                          <span>Total Aportado:</span>
+                          <span className="font-mono-numbers font-semibold">{formatCurrency(activeProjectStats.totalAportado)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Gastado / Ejercido:</span>
+                          <span className="font-mono-numbers font-semibold">{formatCurrency(activeProjectStats.totalGastado)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-orange-200 pt-0.5 font-bold text-orange-900">
+                          <span>Saldo en Fondo:</span>
+                          <span className="font-mono-numbers">{formatCurrency(activeProjectStats.saldoDisponible)}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-0.5 text-slate-700">
-                      <div className="flex justify-between">
-                        <span>Total Aportado Histórico:</span>
-                        <span className="font-mono-numbers font-semibold">{formatCurrency(fondoMetrics.totalAportado)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total Ejercido / Gastos:</span>
-                        <span className="font-mono-numbers font-semibold">{formatCurrency(fondoMetrics.totalGastado)}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-orange-200 pt-0.5 font-bold text-orange-900">
-                        <span>Saldo Remanente en Fondo:</span>
-                        <span className="font-mono-numbers">{formatCurrency(fondoMetrics.saldoDisponible)}</span>
-                      </div>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 p-2 rounded text-[9px] mb-3 text-slate-400 italic text-center">
+                      Sin proyecto activo seleccionado para el estado de cuenta
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Nota Institucional */}

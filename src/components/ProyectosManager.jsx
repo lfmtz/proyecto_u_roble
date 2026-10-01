@@ -98,7 +98,11 @@ export default function ProyectosManager() {
       </div>
 
       {/* Control: Checkbox para decidir qué proyecto se muestra en el Estado de Cuenta */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className={`border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors ${
+        esElActivoEnEstadoCuenta 
+          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200' 
+          : 'bg-slate-50 border-slate-200'
+      }`}>
         <div className="flex items-start sm:items-center gap-3">
           <input
             type="checkbox"
@@ -107,24 +111,33 @@ export default function ProyectosManager() {
             onChange={(e) => {
               if (e.target.checked) {
                 handleSelectActiveProject(selectedProjectName);
+              } else {
+                handleSelectActiveProject(null);
               }
             }}
             className="w-4 h-4 mt-0.5 sm:mt-0 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
           />
           <label htmlFor="checkbox-active-project" className="text-xs cursor-pointer">
-            <span className="font-bold text-emerald-950 block">
+            <span className="font-bold text-slate-900 block">
               Mostrar "{selectedProjectName}" en el Estado de Cuenta Oficial del mes
             </span>
-            <span className="text-emerald-800/80 text-[11px] block mt-0.5">
-              Al marcar esta casilla, este proyecto será el que aparezca destacado en la hoja impresa para el pizarrón.
+            <span className="text-slate-500 text-[11px] block mt-0.5">
+              {esElActivoEnEstadoCuenta
+                ? 'Actualmente visible en el estado de cuenta y pizarrón. Desmárcalo si este mes no deseas mostrar ningún proyecto.'
+                : 'Al marcar esta casilla, este proyecto se mostrará en el estado de cuenta y en el pizarrón.'
+              }
             </span>
           </label>
         </div>
 
-        {esElActivoEnEstadoCuenta && (
+        {esElActivoEnEstadoCuenta ? (
           <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 self-start sm:self-auto shadow-xs">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             Activo en Estado de Cuenta
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-white/70 px-2.5 py-1 rounded-lg border border-slate-200 self-start sm:self-auto">
+            Oculto del Estado de Cuenta
           </span>
         )}
       </div>

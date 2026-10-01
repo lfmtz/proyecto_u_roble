@@ -54,7 +54,9 @@ export function AppProvider({ children }) {
 
   const [activeProjectName, setActiveProjectName] = useState(() => {
     try {
-      return localStorage.getItem(ACTIVE_PROJECT_KEY) || 'Cambio de tanque de gas';
+      const stored = localStorage.getItem(ACTIVE_PROJECT_KEY);
+      if (stored === 'none' || stored === '') return null;
+      return stored !== null ? stored : 'Cambio de tanque de gas';
     } catch {
       return 'Cambio de tanque de gas';
     }
@@ -193,6 +195,7 @@ export function AppProvider({ children }) {
 
   // Estadísticas del proyecto activo actualmente seleccionado para el Estado de Cuenta
   const activeProjectStats = useMemo(() => {
+    if (!activeProjectName) return null;
     return getProjectStats(activeProjectName);
   }, [getProjectStats, activeProjectName]);
 
@@ -357,8 +360,13 @@ export function AppProvider({ children }) {
 
   // Acciones de proyectos
   const handleSelectActiveProject = (nombre) => {
-    setActiveProjectName(nombre);
-    localStorage.setItem(ACTIVE_PROJECT_KEY, nombre);
+    const val = nombre ? nombre : null;
+    setActiveProjectName(val);
+    if (val) {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, val);
+    } else {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, 'none');
+    }
   };
 
   const handleCrearProyecto = (nuevoProyecto) => {

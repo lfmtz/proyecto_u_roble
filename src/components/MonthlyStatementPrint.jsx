@@ -251,8 +251,8 @@ export default function MonthlyStatementPrint() {
                     </tfoot>
                   </table>
 
-                  {/* Estado del Proyecto Activo Seleccionado */}
-                  {activeProjectStats ? (
+                  {/* Estado del Proyecto Activo Seleccionado (solo si está activo) */}
+                  {activeProjectStats && (
                     <div className="bg-orange-50/70 border border-orange-200 p-2 rounded text-[9px] mb-3">
                       <div className="font-bold text-orange-950 uppercase mb-0.5 flex justify-between items-center">
                         <span className="truncate pr-2">Proyecto: {activeProjectStats.nombre}</span>
@@ -276,10 +276,6 @@ export default function MonthlyStatementPrint() {
                           <span className="font-mono-numbers">{formatCurrency(activeProjectStats.saldoDisponible)}</span>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 border border-slate-200 p-2 rounded text-[9px] mb-3 text-slate-400 italic text-center">
-                      Sin proyecto activo seleccionado para el estado de cuenta
                     </div>
                   )}
                 </div>

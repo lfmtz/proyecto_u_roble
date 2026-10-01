@@ -11,10 +11,10 @@ export default function ModalEditarVecino() {
     v => String(v.depto).trim() === String(deptoId).trim()
   ) || {};
 
-  const [nombre, setNombre] = useState(currentVecino.nombre || '');
-  const [telefono, setTelefono] = useState(currentVecino.telefono || '');
-  const [correo, setCorreo] = useState(currentVecino.correo || '');
-  const [nota, setNota] = useState(currentVecino.nota || '');
+  const [nombre, setNombre] = useState(String(currentVecino.nombre || ''));
+  const [telefono, setTelefono] = useState(String(currentVecino.telefono || ''));
+  const [correo, setCorreo] = useState(String(currentVecino.correo || ''));
+  const [nota, setNota] = useState(String(currentVecino.nota || ''));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 

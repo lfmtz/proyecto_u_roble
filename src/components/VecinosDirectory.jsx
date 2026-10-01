@@ -11,10 +11,13 @@ export default function VecinosDirectory() {
     return monthlyMovimientos.filter(item => {
       const q = searchTerm.toLowerCase().trim();
       if (!q) return true;
+      const deptoStr = String(item.depto || '').toLowerCase();
+      const nombreStr = String(item.nombre || '').toLowerCase();
+      const telStr = String(item.telefono || '');
       return (
-        item.depto.toLowerCase().includes(q) ||
-        (item.nombre && item.nombre.toLowerCase().includes(q)) ||
-        (item.telefono && item.telefono.includes(q))
+        deptoStr.includes(q) ||
+        nombreStr.includes(q) ||
+        telStr.includes(q)
       );
     });
   }, [monthlyMovimientos, searchTerm]);
@@ -48,7 +51,8 @@ export default function VecinosDirectory() {
         {vecinosList.map((vecino) => {
           const badge = getStatusBadge(vecino.estado);
           const rawVecino = data.vecinos.find(v => String(v.depto).trim() === String(vecino.depto).trim()) || {};
-          const telefonoLimpio = (vecino.telefono || rawVecino.telefono || '').replace(/\D/g, '');
+          const telefonoStr = String(vecino.telefono || rawVecino.telefono || '');
+          const telefonoLimpio = telefonoStr.replace(/\D/g, '');
 
           return (
             <div
@@ -91,23 +95,23 @@ export default function VecinosDirectory() {
 
                 {/* Info de contacto */}
                 <div className="mt-3 space-y-1 text-xs text-slate-600">
-                  {vecino.telefono || rawVecino.telefono ? (
+                  {telefonoStr ? (
                     <div className="flex items-center gap-1.5 text-slate-600">
                       <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{vecino.telefono || rawVecino.telefono}</span>
+                      <span>{telefonoStr}</span>
                     </div>
                   ) : null}
 
                   {vecino.correo || rawVecino.correo ? (
                     <div className="flex items-center gap-1.5 text-slate-500 truncate">
                       <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="truncate">{vecino.correo || rawVecino.correo}</span>
+                      <span className="truncate">{String(vecino.correo || rawVecino.correo)}</span>
                     </div>
                   ) : null}
 
                   {rawVecino.nota ? (
                     <div className="text-[11px] text-amber-700 bg-amber-50/70 rounded p-1.5 mt-1 border border-amber-100">
-                      Nota: {rawVecino.nota}
+                      Nota: {String(rawVecino.nota)}
                     </div>
                   ) : null}
                 </div>

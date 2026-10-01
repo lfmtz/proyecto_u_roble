@@ -78,17 +78,17 @@ export default function ModalDeptoHistorial() {
           <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-4 text-xs text-slate-600">
             {vecinoInfo.telefono && (
               <span className="flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-slate-400" /> {vecinoInfo.telefono}
+                <Phone className="w-3.5 h-3.5 text-slate-400" /> {String(vecinoInfo.telefono)}
               </span>
             )}
             {vecinoInfo.correo && (
               <span className="flex items-center gap-1 truncate max-w-xs">
-                <Mail className="w-3.5 h-3.5 text-slate-400" /> {vecinoInfo.correo}
+                <Mail className="w-3.5 h-3.5 text-slate-400" /> {String(vecinoInfo.correo)}
               </span>
             )}
             {vecinoInfo.nota && (
               <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium border border-amber-200">
-                {vecinoInfo.nota}
+                {String(vecinoInfo.nota)}
               </span>
             )}
           </div>

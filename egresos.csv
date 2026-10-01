@@ -1,0 +1,15 @@
+mes,anio,concepto,monto,tipo,fuente
+Diciembre,2025,Recolección de basura,300.0,fijo,ESTADOS DE CUENTA MENSUALES.xlsx :: DICIEMBRE2025
+Diciembre,2025,Lavado de contenedores de basura,300.0,fijo,ESTADOS DE CUENTA MENSUALES.xlsx :: DICIEMBRE2025
+Diciembre,2025,Poda completa de jardín,1000.0,variable,ESTADOS DE CUENTA MENSUALES.xlsx :: DICIEMBRE2025
+Diciembre,2025,Compra de jabón y cloro para lavado de contenedores,58.0,variable,ESTADOS DE CUENTA MENSUALES.xlsx :: DICIEMBRE2025
+Enero,2026,Recolección de basura,300.0,fijo,ESTADOS DE CUENTA MENSUALES.xlsx :: ENERO2026
+Enero,2026,Lavado de contenedores de basura,300.0,fijo,ESTADOS DE CUENTA MENSUALES.xlsx :: ENERO2026
+Enero,2026,"Compra e instalación del foco de la farola 
+exterior que se encuentra a un costado del altar",250.0,variable,ESTADOS DE CUENTA MENSUALES.xlsx :: ENERO2026
+Enero,2026,Cambio de foco de pasillo ubicado en piso 2,50.0,variable,ESTADOS DE CUENTA MENSUALES.xlsx :: ENERO2026
+Enero,2026,Compra de pichancha para cisterna interior,165.0,variable,ESTADOS DE CUENTA MENSUALES.xlsx :: ENERO2026
+Agosto,2026,Recolección de basura,300.0,fijo,BALANCE POR MES A PEGAR EN EL PIZARRÓN DE AVISOS.docx
+Agosto,2026,Lavado de contenedores de basura,300.0,fijo,BALANCE POR MES A PEGAR EN EL PIZARRÓN DE AVISOS.docx
+Agosto,2026,Compra de bomba hidráulica,4250.0,variable,BALANCE POR MES A PEGAR EN EL PIZARRÓN DE AVISOS.docx
+Agosto,2026,Mano de obra para instalación de bomba,1000.0,variable,BALANCE POR MES A PEGAR EN EL PIZARRÓN DE AVISOS.docx

@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, getStatusBadge } from '../utils/formatters';
-import { Search, Phone, Mail, FileText, ChevronRight, PlusCircle, MessageCircle } from 'lucide-react';
+import { Search, Phone, Mail, FileText, PlusCircle, MessageCircle, Edit3, AlertTriangle } from 'lucide-react';
 
 export default function VecinosDirectory() {
   const { data, monthlyMovimientos, openModal, selectedMonth, selectedYear } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Combinar datos del catálogo de vecinos con su estado en el mes actual
   const vecinosList = useMemo(() => {
     return monthlyMovimientos.filter(item => {
       const q = searchTerm.toLowerCase().trim();
@@ -27,7 +26,7 @@ export default function VecinosDirectory() {
         <div>
           <h2 className="text-xl font-bold text-slate-900">Directorio de Departamentos</h2>
           <p className="text-xs text-slate-500">
-            20 departamentos • Control de contactos y estatus del mes
+            20 departamentos • Haz clic en el lápiz para editar datos de contacto y nombre
           </p>
         </div>
 
@@ -66,11 +65,28 @@ export default function VecinosDirectory() {
                       <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
                         {vecino.nombre || `Depto ${vecino.depto}`}
                       </h4>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge.bg}`}>
-                        {badge.label}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge.bg}`}>
+                          {badge.label}
+                        </span>
+                        {vecino.tiene_adeudo_anterior && (
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Debe {formatCurrency(vecino.adeudo_anterior)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Botón Editar Vecino */}
+                  <button
+                    onClick={() => openModal('editar_vecino', { depto: vecino.depto })}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                    title="Editar residente y contactos"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Info de contacto */}
@@ -104,7 +120,7 @@ export default function VecinosDirectory() {
                   className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  Ver Historial
+                  Historial
                 </button>
 
                 <div className="flex items-center gap-1.5">

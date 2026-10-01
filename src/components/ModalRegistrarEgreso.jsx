@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MONTH_NAMES, getMonthName } from '../utils/formatters';
-import { X, Check, Loader2 } from 'lucide-react';
+import { X, Check, Loader2, Sparkles } from 'lucide-react';
 
 export default function ModalRegistrarEgreso() {
   const { closeModal, handleRegistrarEgreso, selectedMonth, selectedYear } = useApp();
@@ -14,13 +14,14 @@ export default function ModalRegistrarEgreso() {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Sugerencias rápidas de conceptos comunes
+  // Sugerencias rápidas de conceptos comunes (Fijos y Extraordinarios)
   const sugerencias = [
-    { text: 'Recolección de basura', tipo: 'fijo', monto: '300' },
-    { text: 'Lavado de contenedores de basura', tipo: 'fijo', monto: '300' },
-    { text: 'Poda completa de jardín', tipo: 'variable', monto: '1000' },
-    { text: 'Cambio de foco', tipo: 'variable', monto: '50' },
-    { text: 'Compra de jabón y cloro', tipo: 'variable', monto: '58' },
+    { text: 'Recolección de basura', tipo: 'fijo', monto: '300', tag: 'Fijo' },
+    { text: 'Lavado de contenedores de basura', tipo: 'fijo', monto: '300', tag: 'Fijo' },
+    { text: 'Poda completa de jardín', tipo: 'variable', monto: '1000', tag: 'Extraordinario' },
+    { text: 'Cambio de foco', tipo: 'variable', monto: '50', tag: 'Extraordinario' },
+    { text: 'Compra de jabón y cloro', tipo: 'variable', monto: '58', tag: 'Extraordinario' },
+    { text: 'Reparación de bomba / fontanería', tipo: 'variable', monto: '', tag: 'Extraordinario' },
   ];
 
   const handleSubmit = async (e) => {
@@ -66,7 +67,7 @@ export default function ModalRegistrarEgreso() {
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Registrar Nuevo Gasto</h3>
-            <p className="text-xs text-slate-500">Agrega un egreso fijo o extraordinario del edificio</p>
+            <p className="text-xs text-slate-500">Agrega un gasto fijo o extraordinario del edificio</p>
           </div>
           <button
             onClick={closeModal}
@@ -85,6 +86,43 @@ export default function ModalRegistrarEgreso() {
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           
+          {/* Clasificación: Fijo vs Extraordinario */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Tipo de Gasto
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setTipo('fijo')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center ${
+                  tipo === 'fijo'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Gasto Fijo (Recurrente)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipo('variable')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center ${
+                  tipo === 'variable'
+                    ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs font-black'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                Extraordinario / Imprevisto
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              {tipo === 'fijo'
+                ? 'Servicios mensuales recurrentes (ej. recolección de basura, limpieza de contenedores).'
+                : 'Mantenimientos imprevistos, bombillas, plomería, jardinería o reparaciones eventuales.'}
+            </p>
+          </div>
+
           {/* Período */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -119,8 +157,8 @@ export default function ModalRegistrarEgreso() {
 
           {/* Sugerencias Rápidas */}
           <div>
-            <span className="block text-[11px] font-semibold text-slate-500 mb-1">
-              Sugerencias comunes:
+            <span className="block text-[11px] font-semibold text-slate-500 mb-1 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" /> Plantillas frecuentes (1-clic):
             </span>
             <div className="flex flex-wrap gap-1.5">
               {sugerencias.map((sug, i) => (
@@ -134,7 +172,7 @@ export default function ModalRegistrarEgreso() {
                   }}
                   className="px-2 py-1 rounded-md text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors"
                 >
-                  {sug.text}
+                  {sug.text} {sug.monto ? `($${sug.monto})` : ''}
                 </button>
               ))}
             </div>
@@ -147,42 +185,26 @@ export default function ModalRegistrarEgreso() {
             </label>
             <input
               type="text"
-              placeholder="Ej. Cambio de foco de pasillo piso 2"
+              placeholder="Ej. Cambio de foco en pasillo 2 o Compra de refacción"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
             />
           </div>
 
-          {/* Monto y Tipo */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Monto ($)
-              </label>
-              <input
-                type="number"
-                step="any"
-                placeholder="0.00"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold font-mono-numbers text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tipo de Gasto
-              </label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              >
-                <option value="fijo">Fijo (Servicio recurrente)</option>
-                <option value="variable">Variable / Extraordinario</option>
-              </select>
-            </div>
+          {/* Monto */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Monto Pagado ($)
+            </label>
+            <input
+              type="number"
+              step="any"
+              placeholder="0.00"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold font-mono-numbers text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
+            />
           </div>
 
           {/* Botones de Acción */}

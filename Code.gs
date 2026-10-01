@@ -51,6 +51,8 @@ function doPost(e) {
         data.estado,
         data.fuente || "App Web"
       ];
+      targetSheet.appendRow(rowData);
+
     } else if (action === "registrar_egreso") {
       targetSheet = ss.getSheetByName("egresos");
       // Columnas: mes, anio, concepto, monto, tipo, fuente
@@ -62,6 +64,8 @@ function doPost(e) {
         data.tipo, // 'fijo' o 'variable'
         data.fuente || "App Web"
       ];
+      targetSheet.appendRow(rowData);
+
     } else if (action === "registrar_fondo") {
       targetSheet = ss.getSheetByName("proyecto_fondo");
       // Columnas: proyecto, tipo, concepto, monto
@@ -71,19 +75,49 @@ function doPost(e) {
         data.concepto,
         Number(data.monto)
       ];
+      targetSheet.appendRow(rowData);
+
+    } else if (action === "actualizar_vecino") {
+      // Actualizar datos de contacto y nombre en la pestaña vecinos
+      targetSheet = ss.getSheetByName("vecinos");
+      if (!targetSheet) throw new Error("No se encontró la hoja vecinos");
+      
+      const sheetData = targetSheet.getDataRange().getValues();
+      const targetDepto = String(data.depto).trim();
+      let rowIndex = -1;
+
+      // Buscar la fila por número de depto (columna 0)
+      for (let i = 1; i < sheetData.length; i++) {
+        if (String(sheetData[i][0]).trim() === targetDepto) {
+          rowIndex = i + 1; // 1-indexed para SpreadsheetApp
+          break;
+        }
+      }
+
+      if (rowIndex !== -1) {
+        // Columnas: depto, nombre, correo, telefono, nota
+        targetSheet.getRange(rowIndex, 2).setValue(data.nombre || "");
+        targetSheet.getRange(rowIndex, 3).setValue(data.correo || "");
+        targetSheet.getRange(rowIndex, 4).setValue(data.telefono || "");
+        targetSheet.getRange(rowIndex, 5).setValue(data.nota || "");
+      } else {
+        // Si no existe, agregarlo como nuevo vecino
+        targetSheet.appendRow([
+          data.depto,
+          data.nombre || "",
+          data.correo || "",
+          data.telefono || "",
+          data.nota || ""
+        ]);
+      }
+
     } else {
       throw new Error("Acción no reconocida: " + action);
     }
 
-    if (!targetSheet) {
-      throw new Error("No se encontró la hoja correspondiente");
-    }
-
-    targetSheet.appendRow(rowData);
-
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      message: "Registro guardado correctamente",
+      message: "Operación realizada correctamente",
       action: action
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -109,7 +143,6 @@ function getSheetRows(sheet) {
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    // Ignorar filas totalmente vacías
     if (row.every(cell => cell === "" || cell === null)) continue;
     
     const obj = {};

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { fetchAppData, registrarPago, registrarEgreso, registrarFondo } from '../services/api';
+import { fetchAppData, registrarPago, registrarEgreso, registrarFondo, actualizarVecino } from '../services/api';
 import { MONTH_NAMES, getMonthName } from '../utils/formatters';
 
 const AppContext = createContext();
@@ -16,14 +16,13 @@ export function AppProvider({ children }) {
   const [error, setError] = useState(null);
 
   // Fecha actual o predeterminada (2026, Octubre)
-  const currentDate = new Date();
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(10); // 1-12 (10 = Octubre)
 
   // Control de modales y navegación
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'movimientos', 'egresos', 'fondo', 'vecinos', 'imprimir'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'vecinos', 'egresos', 'fondo', 'imprimir'
   const [modalState, setModalState] = useState({
-    type: null, // 'pago', 'egreso', 'fondo', 'depto_historial'
+    type: null, // 'pago', 'egreso', 'fondo', 'depto_historial', 'editar_vecino'
     props: null,
   });
 
@@ -57,15 +56,13 @@ export function AppProvider({ children }) {
     return Array.from(years).sort((a, b) => b - a);
   }, [data.movimientos]);
 
-  // Movimientos del mes seleccionado
+  // Movimientos y estados de cada departamento para el mes seleccionado,
+  // con cálculo de adeudos anteriores acumulados.
   const monthlyMovimientos = useMemo(() => {
     const currentMonthName = getMonthName(selectedMonth).toLowerCase();
-    
-    // Agrupar los movimientos por departamento para el mes seleccionado
-    // Si hay múltiples registros (abonos), se calcula el total acumulado
     const deptosMap = {};
 
-    // Inicializar todos los departamentos de 'vecinos'
+    // 1. Inicializar departamentos según catálogo de vecinos
     data.vecinos.forEach(v => {
       const deptoId = String(v.depto).trim();
       deptosMap[deptoId] = {
@@ -73,45 +70,59 @@ export function AppProvider({ children }) {
         nombre: v.nombre || `Depto ${deptoId}`,
         telefono: v.telefono || '',
         correo: v.correo || '',
+        nota: v.nota || '',
         cuota: 150,
         monto_pagado: 0,
         estado: 'pendiente',
         historial_mes: [],
+        adeudo_anterior: 0,
+        meses_adeudo_anterior: 0,
       };
     });
 
-    // Sumar movimientos correspondientes al año y mes seleccionados
+    // 2. Calcular cuota y abonos del mes corriente + adeudos de meses anteriores
     data.movimientos.forEach(m => {
       const deptoId = String(m.depto).trim();
       const mAnio = Number(m.anio);
       const mMesNum = Number(m.mes_num);
       const mMes = String(m.mes || '').toLowerCase().trim();
+      const cuota = Number(m.cuota || 150);
+      const pagado = Number(m.monto_pagado || 0);
 
-      const matchYear = mAnio === selectedYear;
-      const matchMonth = mMesNum === selectedMonth || mMes === currentMonthName;
+      if (!deptosMap[deptoId]) {
+        deptosMap[deptoId] = {
+          depto: deptoId,
+          nombre: `Depto ${deptoId}`,
+          telefono: '',
+          correo: '',
+          nota: '',
+          cuota: cuota,
+          monto_pagado: 0,
+          estado: 'pendiente',
+          historial_mes: [],
+          adeudo_anterior: 0,
+          meses_adeudo_anterior: 0,
+        };
+      }
 
-      if (matchYear && matchMonth) {
-        if (!deptosMap[deptoId]) {
-          deptosMap[deptoId] = {
-            depto: deptoId,
-            nombre: `Depto ${deptoId}`,
-            telefono: '',
-            correo: '',
-            cuota: Number(m.cuota || 150),
-            monto_pagado: 0,
-            estado: 'pendiente',
-            historial_mes: [],
-          };
-        }
+      const esMesActual = mAnio === selectedYear && (mMesNum === selectedMonth || mMes === currentMonthName);
+      const esMesAnterior = mAnio < selectedYear || (mAnio === selectedYear && mMesNum < selectedMonth);
 
-        const monto = Number(m.monto_pagado) || 0;
-        deptosMap[deptoId].monto_pagado += monto;
-        deptosMap[deptoId].cuota = Number(m.cuota) || deptosMap[deptoId].cuota;
+      if (esMesActual) {
+        deptosMap[deptoId].monto_pagado += pagado;
+        deptosMap[deptoId].cuota = cuota;
         deptosMap[deptoId].historial_mes.push(m);
+      } else if (esMesAnterior) {
+        // Si en un mes anterior no cubrió la cuota completa
+        if (pagado < cuota) {
+          const deficit = Math.max(0, cuota - pagado);
+          deptosMap[deptoId].adeudo_anterior += deficit;
+          deptosMap[deptoId].meses_adeudo_anterior += 1;
+        }
       }
     });
 
-    // Calcular estado definitivo de cada departamento para el mes
+    // 3. Determinar estado y totales finales
     return Object.values(deptosMap).map(d => {
       let estado = 'pendiente';
       if (d.monto_pagado >= d.cuota && d.cuota > 0) {
@@ -119,13 +130,19 @@ export function AppProvider({ children }) {
       } else if (d.monto_pagado > 0) {
         estado = 'parcial';
       }
+
+      const saldoPendienteMes = Math.max(0, d.cuota - d.monto_pagado);
+      const tieneAdeudoAnterior = d.adeudo_anterior > 0;
+      const adeudoTotal = saldoPendienteMes + d.adeudo_anterior;
+
       return {
         ...d,
         estado,
-        saldo_pendiente: Math.max(0, d.cuota - d.monto_pagado),
+        saldo_pendiente: saldoPendienteMes,
+        tiene_adeudo_anterior: tieneAdeudoAnterior,
+        adeudo_total: adeudoTotal,
       };
     }).sort((a, b) => {
-      // Ordenar departamentos numéricamente
       const numA = parseInt(a.depto, 10) || 0;
       const numB = parseInt(b.depto, 10) || 0;
       return numA - numB;
@@ -153,6 +170,7 @@ export function AppProvider({ children }) {
     const pagados = monthlyMovimientos.filter(d => d.estado === 'pagado').length;
     const parciales = monthlyMovimientos.filter(d => d.estado === 'parcial').length;
     const pendientes = monthlyMovimientos.filter(d => d.estado === 'pendiente').length;
+    const conAdeudoAnterior = monthlyMovimientos.filter(d => d.tiene_adeudo_anterior).length;
 
     const porcCobranza = totalDeptos > 0 ? Math.round((pagados / totalDeptos) * 100) : 0;
 
@@ -164,6 +182,7 @@ export function AppProvider({ children }) {
       pagados,
       parciales,
       pendientes,
+      conAdeudoAnterior,
       porcCobranza,
     };
   }, [monthlyMovimientos, monthlyEgresos]);
@@ -185,10 +204,6 @@ export function AppProvider({ children }) {
       } else if (tipo === 'gasto') {
         totalGastado += monto;
         gastos.push(item);
-      } else if (tipo === 'total_aportado') {
-        // Si la tabla ya trae un total explícito, se puede comparar
-      } else if (tipo === 'total_gastado') {
-        // Igual para total_gastado
       }
     });
 
@@ -207,10 +222,7 @@ export function AppProvider({ children }) {
 
   // Acciones
   const handleRegistrarPago = async (pagoPayload) => {
-    // 1. Enviar a la API
     await registrarPago(pagoPayload);
-
-    // 2. Actualización local
     setData(prev => ({
       ...prev,
       movimientos: [...prev.movimientos, pagoPayload],
@@ -231,6 +243,26 @@ export function AppProvider({ children }) {
       ...prev,
       proyecto_fondo: [...prev.proyecto_fondo, fondoPayload],
     }));
+  };
+
+  const handleActualizarVecino = async (vecinoPayload) => {
+    await actualizarVecino(vecinoPayload);
+    setData(prev => {
+      const targetDepto = String(vecinoPayload.depto).trim();
+      const existingIdx = prev.vecinos.findIndex(v => String(v.depto).trim() === targetDepto);
+      let newVecinos = [...prev.vecinos];
+
+      if (existingIdx >= 0) {
+        newVecinos[existingIdx] = { ...newVecinos[existingIdx], ...vecinoPayload };
+      } else {
+        newVecinos.push(vecinoPayload);
+      }
+
+      return {
+        ...prev,
+        vecinos: newVecinos,
+      };
+    });
   };
 
   const openModal = (type, props = {}) => {
@@ -266,6 +298,7 @@ export function AppProvider({ children }) {
         handleRegistrarPago,
         handleRegistrarEgreso,
         handleRegistrarFondo,
+        handleActualizarVecino,
       }}
     >
       {children}

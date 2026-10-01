@@ -17,7 +17,6 @@ export async function fetchAppData() {
 
     const json = await res.json();
     if (json.status === "success" && json.data) {
-      // Guardar en caché local para arranque instantáneo y modo offline
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
       } catch (e) {
@@ -29,7 +28,6 @@ export async function fetchAppData() {
     }
   } catch (error) {
     console.error("Fallo al obtener datos de Google Sheets:", error);
-    // Intentar recuperar de caché si falla la red
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       console.info("Usando datos de caché local");
@@ -59,26 +57,18 @@ async function sendPost(action, data) {
   return json;
 }
 
-/**
- * Registra un pago en la hoja 'movimientos'
- */
 export async function registrarPago(data) {
-  // data: { depto, anio, mes_num, mes, cuota, monto_pagado, estado, fuente }
   return await sendPost("registrar_pago", data);
 }
 
-/**
- * Registra un gasto en la hoja 'egresos'
- */
 export async function registrarEgreso(data) {
-  // data: { mes, anio, concepto, monto, tipo, fuente }
   return await sendPost("registrar_egreso", data);
 }
 
-/**
- * Registra un movimiento en la hoja 'proyecto_fondo'
- */
 export async function registrarFondo(data) {
-  // data: { proyecto, tipo, concepto, monto }
   return await sendPost("registrar_fondo", data);
+}
+
+export async function actualizarVecino(data) {
+  return await sendPost("actualizar_vecino", data);
 }

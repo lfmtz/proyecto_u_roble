@@ -10,6 +10,7 @@ import ModalRegistrarPago from './components/ModalRegistrarPago';
 import ModalRegistrarEgreso from './components/ModalRegistrarEgreso';
 import ModalRegistrarFondo from './components/ModalRegistrarFondo';
 import ModalDeptoHistorial from './components/ModalDeptoHistorial';
+import ModalEditarVecino from './components/ModalEditarVecino';
 import { 
   Building2, 
   RotateCw, 
@@ -128,6 +129,7 @@ function MainContent() {
       {modalState.type === 'egreso' && <ModalRegistrarEgreso />}
       {modalState.type === 'fondo' && <ModalRegistrarFondo />}
       {modalState.type === 'depto_historial' && <ModalDeptoHistorial />}
+      {modalState.type === 'editar_vecino' && <ModalEditarVecino />}
     </div>
   );
 }

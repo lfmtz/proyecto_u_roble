@@ -65,10 +65,26 @@ export async function registrarEgreso(data) {
   return await sendPost("registrar_egreso", data);
 }
 
+export async function editarEgreso(data) {
+  return await sendPost("editar_egreso", data);
+}
+
+export async function eliminarEgreso(data) {
+  return await sendPost("eliminar_egreso", data);
+}
+
+export async function registrarGastosFijosMes(data) {
+  return await sendPost("registrar_gastos_fijos_mes", data);
+}
+
 export async function registrarFondo(data) {
   return await sendPost("registrar_fondo", data);
 }
 
 export async function actualizarVecino(data) {
   return await sendPost("actualizar_vecino", data);
+}
+
+export async function loginUser(usuario, password) {
+  return await sendPost("login", { usuario, password });
 }

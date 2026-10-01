@@ -1,8 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { fetchAppData, registrarPago, registrarEgreso, registrarFondo, actualizarVecino } from '../services/api';
+import { 
+  fetchAppData, 
+  registrarPago, 
+  registrarEgreso, 
+  editarEgreso,
+  eliminarEgreso,
+  registrarGastosFijosMes,
+  registrarFondo, 
+  actualizarVecino,
+  loginUser
+} from '../services/api';
 import { MONTH_NAMES, getMonthName } from '../utils/formatters';
 
 const AppContext = createContext();
+const AUTH_KEY = 'roble30_session_user';
 
 export function AppProvider({ children }) {
   const [data, setData] = useState({
@@ -15,6 +26,16 @@ export function AppProvider({ children }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // Autenticación de usuario
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem(AUTH_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Fecha actual o predeterminada (2026, Octubre)
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(10); // 1-12 (10 = Octubre)
@@ -22,7 +43,7 @@ export function AppProvider({ children }) {
   // Control de modales y navegación
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'vecinos', 'egresos', 'fondo', 'imprimir'
   const [modalState, setModalState] = useState({
-    type: null, // 'pago', 'egreso', 'fondo', 'depto_historial', 'editar_vecino'
+    type: null, // 'pago', 'egreso', 'editar_egreso', 'gastos_fijos_mes', 'fondo', 'depto_historial', 'editar_vecino'
     props: null,
   });
 
@@ -56,13 +77,11 @@ export function AppProvider({ children }) {
     return Array.from(years).sort((a, b) => b - a);
   }, [data.movimientos]);
 
-  // Movimientos y estados de cada departamento para el mes seleccionado,
-  // con cálculo de adeudos anteriores acumulados.
+  // Movimientos y estados de cada departamento para el mes seleccionado
   const monthlyMovimientos = useMemo(() => {
     const currentMonthName = getMonthName(selectedMonth).toLowerCase();
     const deptosMap = {};
 
-    // 1. Inicializar departamentos según catálogo de vecinos
     data.vecinos.forEach(v => {
       const deptoId = String(v.depto).trim();
       deptosMap[deptoId] = {
@@ -80,7 +99,6 @@ export function AppProvider({ children }) {
       };
     });
 
-    // 2. Calcular cuota y abonos del mes corriente + adeudos de meses anteriores
     data.movimientos.forEach(m => {
       const deptoId = String(m.depto).trim();
       const mAnio = Number(m.anio);
@@ -113,7 +131,6 @@ export function AppProvider({ children }) {
         deptosMap[deptoId].cuota = cuota;
         deptosMap[deptoId].historial_mes.push(m);
       } else if (esMesAnterior) {
-        // Si en un mes anterior no cubrió la cuota completa
         if (pagado < cuota) {
           const deficit = Math.max(0, cuota - pagado);
           deptosMap[deptoId].adeudo_anterior += deficit;
@@ -122,7 +139,6 @@ export function AppProvider({ children }) {
       }
     });
 
-    // 3. Determinar estado y totales finales
     return Object.values(deptosMap).map(d => {
       let estado = 'pendiente';
       if (d.monto_pagado >= d.cuota && d.cuota > 0) {
@@ -220,7 +236,41 @@ export function AppProvider({ children }) {
     };
   }, [data.proyecto_fondo]);
 
-  // Acciones
+  // Acciones de autenticación
+  const handleLogin = async (usuario, password) => {
+    const u = String(usuario || "").trim().toLowerCase();
+    const p = String(password || "").trim();
+
+    try {
+      const res = await loginUser(u, p);
+      if (res && res.user) {
+        setCurrentUser(res.user);
+        localStorage.setItem(AUTH_KEY, JSON.stringify(res.user));
+        return res.user;
+      }
+    } catch (err) {
+      // Fallback de contingencia mientras se actualiza Code.gs en Google Sheets
+      if ((u === 'admin' && (p === 'roble30' || p === 'admin' || p === '1234')) ||
+          (u === 'vecino' && (p === 'vecino30' || p === 'vecino'))) {
+        const fallbackUser = {
+          usuario: u,
+          nombre: u === 'admin' ? 'Administración Roble 30' : 'Consulta Vecino',
+          rol: u === 'admin' ? 'admin' : 'consulta'
+        };
+        setCurrentUser(fallbackUser);
+        localStorage.setItem(AUTH_KEY, JSON.stringify(fallbackUser));
+        return fallbackUser;
+      }
+      throw err;
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem(AUTH_KEY);
+  };
+
+  // Acciones de datos
   const handleRegistrarPago = async (pagoPayload) => {
     await registrarPago(pagoPayload);
     setData(prev => ({
@@ -234,6 +284,62 @@ export function AppProvider({ children }) {
     setData(prev => ({
       ...prev,
       egresos: [...prev.egresos, egresoPayload],
+    }));
+  };
+
+  const handleEditarEgreso = async (egresoPayload) => {
+    await editarEgreso(egresoPayload);
+    setData(prev => {
+      const newEgresos = prev.egresos.map(e => {
+        if (e._row && e._row === egresoPayload._row) {
+          return { ...e, ...egresoPayload };
+        }
+        if (e.concepto === egresoPayload.oldConcepto && e.mes === egresoPayload.mes) {
+          return { ...e, ...egresoPayload };
+        }
+        return e;
+      });
+      return { ...prev, egresos: newEgresos };
+    });
+  };
+
+  const handleEliminarEgreso = async (egresoPayload) => {
+    await eliminarEgreso(egresoPayload);
+    setData(prev => {
+      const newEgresos = prev.egresos.filter(e => {
+        if (e._row && egresoPayload._row && e._row === egresoPayload._row) {
+          return false;
+        }
+        if (e.concepto === egresoPayload.concepto && Number(e.monto) === Number(egresoPayload.monto)) {
+          return false;
+        }
+        return true;
+      });
+      return { ...prev, egresos: newEgresos };
+    });
+  };
+
+  const handleRegistrarGastosFijos = async (fijosPayload) => {
+    await registrarGastosFijosMes(fijosPayload);
+    const item1 = {
+      mes: fijosPayload.mes,
+      anio: Number(fijosPayload.anio),
+      concepto: "Recolección de basura",
+      monto: Number(fijosPayload.monto_basura || 300),
+      tipo: "fijo",
+      fuente: "App Web (Fijo)"
+    };
+    const item2 = {
+      mes: fijosPayload.mes,
+      anio: Number(fijosPayload.anio),
+      concepto: "Lavado de contenedores de basura",
+      monto: Number(fijosPayload.monto_lavado || 300),
+      tipo: "fijo",
+      fuente: "App Web (Fijo)"
+    };
+    setData(prev => ({
+      ...prev,
+      egresos: [...prev.egresos, item1, item2],
     }));
   };
 
@@ -280,6 +386,9 @@ export function AppProvider({ children }) {
         loading,
         refreshing,
         error,
+        currentUser,
+        handleLogin,
+        handleLogout,
         selectedYear,
         setSelectedYear,
         selectedMonth,
@@ -297,6 +406,9 @@ export function AppProvider({ children }) {
         refreshData: () => loadData(true),
         handleRegistrarPago,
         handleRegistrarEgreso,
+        handleEditarEgreso,
+        handleEliminarEgreso,
+        handleRegistrarGastosFijos,
         handleRegistrarFondo,
         handleActualizarVecino,
       }}

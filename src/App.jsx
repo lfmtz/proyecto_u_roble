@@ -8,9 +8,12 @@ import FondoEspecial from './components/FondoEspecial';
 import MonthlyStatementPrint from './components/MonthlyStatementPrint';
 import ModalRegistrarPago from './components/ModalRegistrarPago';
 import ModalRegistrarEgreso from './components/ModalRegistrarEgreso';
+import ModalEditarEgreso from './components/ModalEditarEgreso';
+import ModalGastosFijosMes from './components/ModalGastosFijosMes';
 import ModalRegistrarFondo from './components/ModalRegistrarFondo';
 import ModalDeptoHistorial from './components/ModalDeptoHistorial';
 import ModalEditarVecino from './components/ModalEditarVecino';
+import LoginScreen from './components/LoginScreen';
 import { 
   Building2, 
   RotateCw, 
@@ -24,7 +27,21 @@ import {
 } from 'lucide-react';
 
 function MainContent() {
-  const { activeTab, setActiveTab, loading, error, refreshData, modalState, openModal } = useApp();
+  const { 
+    currentUser, 
+    activeTab, 
+    setActiveTab, 
+    loading, 
+    error, 
+    refreshData, 
+    modalState, 
+    openModal 
+  } = useApp();
+
+  // Si no ha iniciado sesión, mostrar pantalla de Login
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
 
   if (loading) {
     return (
@@ -127,6 +144,8 @@ function MainContent() {
       {/* Renderizado Condicional de Modales */}
       {modalState.type === 'pago' && <ModalRegistrarPago />}
       {modalState.type === 'egreso' && <ModalRegistrarEgreso />}
+      {modalState.type === 'editar_egreso' && <ModalEditarEgreso />}
+      {modalState.type === 'gastos_fijos_mes' && <ModalGastosFijosMes />}
       {modalState.type === 'fondo' && <ModalRegistrarFondo />}
       {modalState.type === 'depto_historial' && <ModalDeptoHistorial />}
       {modalState.type === 'editar_vecino' && <ModalEditarVecino />}

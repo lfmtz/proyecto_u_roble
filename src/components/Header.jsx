@@ -10,7 +10,9 @@ import {
   Users, 
   TrendingDown, 
   Flame, 
-  LayoutDashboard 
+  LayoutDashboard,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 
 export default function Header() {
@@ -24,7 +26,9 @@ export default function Header() {
     refreshing,
     activeTab,
     setActiveTab,
-    openModal
+    openModal,
+    currentUser,
+    handleLogout
   } = useApp();
 
   return (
@@ -44,14 +48,14 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Selectores de Período y Botón de Recarga */}
+          {/* Selectores de Período, Botón de Recarga y Usuario */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Selector de Mes */}
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(Number(e.target.value))}
               aria-label="Seleccionar mes"
-              className="bg-slate-50 border border-slate-200 text-slate-800 text-sm font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="bg-slate-50 border border-slate-200 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-2 sm:px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               {MONTH_NAMES.map((name, idx) => (
                 <option key={name} value={idx + 1}>
@@ -65,7 +69,7 @@ export default function Header() {
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
               aria-label="Seleccionar año"
-              className="bg-slate-50 border border-slate-200 text-slate-800 text-sm font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="bg-slate-50 border border-slate-200 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-2 sm:px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               {availableYears.map((yr) => (
                 <option key={yr} value={yr}>
@@ -84,8 +88,8 @@ export default function Header() {
               <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
 
-            {/* Botón rápido "+ Registrar" (visible en pantallas grandes) */}
-            <div className="hidden sm:flex items-center gap-1.5">
+            {/* Botón rápido "+ Registrar" (visible en pantallas medianas/grandes) */}
+            <div className="hidden md:flex items-center gap-1.5">
               <button
                 onClick={() => openModal('pago')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
@@ -101,6 +105,23 @@ export default function Header() {
                 Gasto
               </button>
             </div>
+
+            {/* Usuario y Cerrar Sesión */}
+            {currentUser && (
+              <div className="flex items-center gap-2 pl-1 border-l border-slate-200">
+                <span className="hidden lg:inline text-xs font-semibold text-slate-700 max-w-[130px] truncate" title={currentUser.nombre}>
+                  {currentUser.nombre}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  title="Cerrar sesión"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
 

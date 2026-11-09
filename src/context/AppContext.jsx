@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { 
   fetchAppData, 
   registrarPago, 
+  registrarPagoAnual,
+  sincronizarResumenSheet,
   registrarEgreso, 
   editarEgreso,
   eliminarEgreso,
@@ -10,12 +12,13 @@ import {
   actualizarVecino,
   loginUser
 } from '../services/api';
-import { MONTH_NAMES, getMonthName } from '../utils/formatters';
+import { MONTH_NAMES, getMonthName, getMonthNumber } from '../utils/formatters';
 
 const AppContext = createContext();
 const AUTH_KEY = 'roble30_session_user';
 const ACTIVE_PROJECT_KEY = 'roble30_active_project';
 const CUSTOM_PROJECTS_KEY = 'roble30_custom_projects';
+const ANNUAL_PAYERS_KEY = 'roble30_annual_payers';
 
 export function AppProvider({ children }) {
   const [data, setData] = useState({
@@ -59,6 +62,20 @@ export function AppProvider({ children }) {
       return stored !== null ? stored : 'Cambio de tanque de gas';
     } catch {
       return 'Cambio de tanque de gas';
+    }
+  });
+
+  // Registro de departamentos con pago anual por año (por defecto 202 y 302 en 2026 cobrados en Enero)
+  const [annualPayers, setAnnualPayers] = useState(() => {
+    const defaultAnnual = {
+      '202_2026': { depto: '202', anio: 2026, mes_cobro: 1 },
+      '302_2026': { depto: '302', anio: 2026, mes_cobro: 1 },
+    };
+    try {
+      const saved = localStorage.getItem(ANNUAL_PAYERS_KEY);
+      return saved ? { ...defaultAnnual, ...JSON.parse(saved) } : defaultAnnual;
+    } catch {
+      return defaultAnnual;
     }
   });
 
@@ -199,6 +216,95 @@ export function AppProvider({ children }) {
     return getProjectStats(activeProjectName);
   }, [getProjectStats, activeProjectName]);
 
+  // Consolidación de movimientos por (depto + año + mes) para evitar filas duplicadas
+  // y asegurar que los abonos parciales sumen correctamente al mismo mes.
+  const consolidatedMovimientos = useMemo(() => {
+    const groups = new Map();
+
+    data.movimientos.forEach(m => {
+      const deptoId = String(m.depto || '').trim();
+      if (!deptoId) return;
+
+      const mAnio = Number(m.anio) || 0;
+      const mMesNum = Number(m.mes_num) || getMonthNumber(m.mes);
+      const mMesName = getMonthName(mMesNum);
+      const cuota = Number(m.cuota || 150);
+      const pagado = Number(m.monto_pagado || 0);
+      const key = `${deptoId}_${mAnio}_${mMesNum}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          depto: deptoId,
+          anio: mAnio,
+          mes_num: mMesNum,
+          mes: mMesName,
+          cuota: cuota,
+          monto_pagado: pagado,
+          estado: m.estado || 'pendiente',
+          fuente: m.fuente || 'Sheet',
+          _row: m._row,
+          registros: [m],
+        });
+      } else {
+        const current = groups.get(key);
+        current.cuota = cuota || current.cuota;
+        current. registros.push(m);
+
+        // Si en la hoja se duplicó el mes porque primero había un parcial (ej. $20 en Excel)
+        // y luego desde la App Web registraron el pago completo ($150) como fila aparte,
+        // o si hicieron varios abonos parciales:
+        const sumPagado = current.monto_pagado + pagado;
+        // Si uno de los registros ya era la cuota completa (150) y el otro era un parcial viejo de Excel,
+        // y la suma supera la cuota regular sin que la cuota haya subido, ajustamos a la cuota (150)
+        // salvo que sea un pago explícitamente mayor en una sola exhibición.
+        if (
+          current.registros.length > 1 &&
+          sumPagado > current.cuota &&
+          (pagado === current.cuota || current.monto_pagado === current.cuota)
+        ) {
+          current.monto_pagado = current.cuota;
+        } else {
+          current.monto_pagado = sumPagado;
+        }
+
+        if (m.fuente && m.fuente !== current.fuente) {
+          current.fuente = 'App Web';
+        }
+      }
+    });
+
+    return Array.from(groups.values()).map(item => {
+      const annualInfo = annualPayers[`${item.depto}_${item.anio}`];
+      const fuenteLower = String(item.fuente || '').toLowerCase();
+      const esCubiertoPorAnual =
+        fuenteLower.includes('cubierto por pago anual') ||
+        (annualInfo && Number(annualInfo.mes_cobro) !== Number(item.mes_num));
+      const esAnual =
+        Boolean(annualInfo) ||
+        fuenteLower.includes('anual');
+
+      let estado = 'pendiente';
+      if (esAnual || (item.monto_pagado >= item.cuota && item.cuota > 0)) {
+        estado = 'pagado';
+      } else if (item.monto_pagado > 0) {
+        estado = 'parcial';
+      }
+      const saldo_restante = esAnual ? 0 : Math.max(0, item.cuota - item.monto_pagado);
+
+      // Si este mes está cubierto por un pago anual realizado en otro mes, no suma efectivo a la caja de este mes
+      const ingreso_efectivo_mes = esCubiertoPorAnual ? 0 : item.monto_pagado;
+
+      return {
+        ...item,
+        estado,
+        es_anual: esAnual,
+        es_cubierto_anual: esCubiertoPorAnual,
+        ingreso_efectivo_mes,
+        saldo_restante,
+      };
+    });
+  }, [data.movimientos, annualPayers]);
+
   // Movimientos y estados de cada departamento para el mes seleccionado
   const monthlyMovimientos = useMemo(() => {
     const currentMonthName = getMonthName(selectedMonth).toLowerCase();
@@ -206,6 +312,9 @@ export function AppProvider({ children }) {
 
     data.vecinos.forEach(v => {
       const deptoId = String(v.depto).trim();
+      const annualInfo = annualPayers[`${deptoId}_${selectedYear}`];
+      const esCubiertoEsteMes = annualInfo && Number(annualInfo.mes_cobro) !== Number(selectedMonth);
+
       deptosMap[deptoId] = {
         depto: deptoId,
         nombre: v.nombre || `Depto ${deptoId}`,
@@ -213,15 +322,18 @@ export function AppProvider({ children }) {
         correo: v.correo || '',
         nota: v.nota || '',
         cuota: 150,
-        monto_pagado: 0,
-        estado: 'pendiente',
+        monto_pagado: annualInfo ? 150 : 0,
+        ingreso_efectivo_mes: 0,
+        es_anual: Boolean(annualInfo),
+        es_cubierto_anual: Boolean(esCubiertoEsteMes),
+        estado: annualInfo ? 'pagado' : 'pendiente',
         historial_mes: [],
         adeudo_anterior: 0,
         meses_adeudo_anterior: 0,
       };
     });
 
-    data.movimientos.forEach(m => {
+    consolidatedMovimientos.forEach(m => {
       const deptoId = String(m.depto).trim();
       const mAnio = Number(m.anio);
       const mMesNum = Number(m.mes_num);
@@ -238,6 +350,9 @@ export function AppProvider({ children }) {
           nota: '',
           cuota: cuota,
           monto_pagado: 0,
+          ingreso_efectivo_mes: 0,
+          es_anual: false,
+          es_cubierto_anual: false,
           estado: 'pendiente',
           historial_mes: [],
           adeudo_anterior: 0,
@@ -249,11 +364,14 @@ export function AppProvider({ children }) {
       const esMesAnterior = mAnio < selectedYear || (mAnio === selectedYear && mMesNum < selectedMonth);
 
       if (esMesActual) {
-        deptosMap[deptoId].monto_pagado += pagado;
+        deptosMap[deptoId].monto_pagado = m.es_anual ? Math.max(pagado, cuota) : pagado;
+        deptosMap[deptoId].ingreso_efectivo_mes = m.ingreso_efectivo_mes;
+        deptosMap[deptoId].es_anual = m.es_anual;
+        deptosMap[deptoId].es_cubierto_anual = m.es_cubierto_anual;
         deptosMap[deptoId].cuota = cuota;
-        deptosMap[deptoId].historial_mes.push(m);
+        deptosMap[deptoId].historial_mes = m.registros || [m];
       } else if (esMesAnterior) {
-        if (pagado < cuota) {
+        if (!m.es_anual && pagado < cuota) {
           const deficit = Math.max(0, cuota - pagado);
           deptosMap[deptoId].adeudo_anterior += deficit;
           deptosMap[deptoId].meses_adeudo_anterior += 1;
@@ -263,13 +381,13 @@ export function AppProvider({ children }) {
 
     return Object.values(deptosMap).map(d => {
       let estado = 'pendiente';
-      if (d.monto_pagado >= d.cuota && d.cuota > 0) {
+      if (d.es_anual || (d.monto_pagado >= d.cuota && d.cuota > 0)) {
         estado = 'pagado';
       } else if (d.monto_pagado > 0) {
         estado = 'parcial';
       }
 
-      const saldoPendienteMes = Math.max(0, d.cuota - d.monto_pagado);
+      const saldoPendienteMes = d.es_anual ? 0 : Math.max(0, d.cuota - d.monto_pagado);
       const tieneAdeudoAnterior = d.adeudo_anterior > 0;
       const adeudoTotal = saldoPendienteMes + d.adeudo_anterior;
 
@@ -285,7 +403,7 @@ export function AppProvider({ children }) {
       const numB = parseInt(b.depto, 10) || 0;
       return numA - numB;
     });
-  }, [data.vecinos, data.movimientos, selectedYear, selectedMonth]);
+  }, [data.vecinos, consolidatedMovimientos, selectedYear, selectedMonth, annualPayers]);
 
   // Egresos del mes seleccionado
   const monthlyEgresos = useMemo(() => {
@@ -300,7 +418,10 @@ export function AppProvider({ children }) {
 
   // Métricas financieras del mes
   const metrics = useMemo(() => {
-    const totalIngresos = monthlyMovimientos.reduce((sum, d) => sum + (d.monto_pagado || 0), 0);
+    const totalIngresos = monthlyMovimientos.reduce(
+      (sum, d) => sum + (d.ingreso_efectivo_mes !== undefined ? d.ingreso_efectivo_mes : (d.monto_pagado || 0)),
+      0
+    );
     const totalEgresos = monthlyEgresos.reduce((sum, e) => sum + (Number(e.monto) || 0), 0);
     const saldoMes = totalIngresos - totalEgresos;
 
@@ -425,10 +546,101 @@ export function AppProvider({ children }) {
   // Acciones de datos
   const handleRegistrarPago = async (pagoPayload) => {
     await registrarPago(pagoPayload);
-    setData(prev => ({
-      ...prev,
-      movimientos: [...prev.movimientos, pagoPayload],
-    }));
+    setData(prev => {
+      const targetDepto = String(pagoPayload.depto).trim();
+      const targetAnio = Number(pagoPayload.anio);
+      const targetMesNum = Number(pagoPayload.mes_num) || getMonthNumber(pagoPayload.mes);
+      const modoRegistro = pagoPayload.modo_registro || 'sumar';
+
+      if (modoRegistro === 'reemplazar') {
+        const filtered = prev.movimientos.filter(m => {
+          const mDepto = String(m.depto).trim();
+          const mAnio = Number(m.anio);
+          const mMesNum = Number(m.mes_num) || getMonthNumber(m.mes);
+          return !(mDepto === targetDepto && mAnio === targetAnio && mMesNum === targetMesNum);
+        });
+        return {
+          ...prev,
+          movimientos: [...filtered, pagoPayload],
+        };
+      }
+
+      return {
+        ...prev,
+        movimientos: [...prev.movimientos, pagoPayload],
+      };
+    });
+  };
+
+  // Registrar Pago Anual (cubre los 12 meses del año, sin sumar flujo de efectivo en los meses subsecuentes)
+  const handleRegistrarPagoAnual = async ({ depto, anio, mes_cobro = 1, cuota = 150 }) => {
+    const deptoStr = String(depto).trim();
+    const anioNum = Number(anio);
+    const mesCobroNum = Number(mes_cobro);
+    const cuotaNum = Number(cuota);
+
+    try {
+      await registrarPagoAnual({
+        depto: deptoStr,
+        anio: anioNum,
+        mes_cobro: mesCobroNum,
+        cuota: cuotaNum,
+      });
+    } catch (e) {
+      // Si el Apps Script en producción aún no se ha actualizado a la acción registrar_pago_anual,
+      // guardamos localmente y registramos para que funcione de inmediato.
+      console.warn('Guardando configuración de pago anual localmente:', e);
+    }
+
+    setAnnualPayers(prev => {
+      const updated = {
+        ...prev,
+        [`${deptoStr}_${anioNum}`]: { depto: deptoStr, anio: anioNum, mes_cobro: mesCobroNum },
+      };
+      localStorage.setItem(ANNUAL_PAYERS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    setData(prev => {
+      const filtered = prev.movimientos.filter(
+        m => !(String(m.depto).trim() === deptoStr && Number(m.anio) === anioNum)
+      );
+      const nuevosMeses = [];
+      for (let m = 1; m <= 12; m++) {
+        const esMesCobro = m === mesCobroNum;
+        nuevosMeses.push({
+          depto: deptoStr,
+          anio: anioNum,
+          mes_num: m,
+          mes: getMonthName(m),
+          cuota: cuotaNum,
+          monto_pagado: cuotaNum,
+          estado: 'pagado',
+          fuente: esMesCobro ? `Pago Anual (Cobrado en ${getMonthName(mesCobroNum)})` : 'Cubierto por Pago Anual',
+        });
+      }
+      return {
+        ...prev,
+        movimientos: [...filtered, ...nuevosMeses],
+      };
+    });
+  };
+
+  const handleSincronizarResumenSheet = async () => {
+    const payload = {
+      mes: getMonthName(selectedMonth),
+      anio: selectedYear,
+      totalIngresos: metrics.totalIngresos,
+      totalEgresos: metrics.totalEgresos,
+      saldoMes: metrics.saldoMes,
+      pagados: metrics.pagados,
+      totalDeptos: metrics.totalDeptos,
+      porcCobranza: metrics.porcCobranza,
+      proyectoNombre: activeProjectStats ? activeProjectStats.nombre : null,
+      proyectoSaldo: activeProjectStats ? activeProjectStats.saldoDisponible : 0,
+      departamentos: monthlyMovimientos,
+    };
+    return await sincronizarResumenSheet(payload);
   };
 
   const handleRegistrarEgreso = async (egresoPayload) => {
@@ -553,6 +765,7 @@ export function AppProvider({ children }) {
         handleCrearProyecto,
         handleAportarProyecto,
         getProjectStats,
+        consolidatedMovimientos,
         monthlyMovimientos,
         monthlyEgresos,
         metrics,
@@ -562,7 +775,10 @@ export function AppProvider({ children }) {
         openModal,
         closeModal,
         refreshData: () => loadData(true),
+        annualPayers,
         handleRegistrarPago,
+        handleRegistrarPagoAnual,
+        handleSincronizarResumenSheet,
         handleRegistrarEgreso,
         handleEditarEgreso,
         handleEliminarEgreso,

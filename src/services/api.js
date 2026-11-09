@@ -61,6 +61,14 @@ export async function registrarPago(data) {
   return await sendPost("registrar_pago", data);
 }
 
+export async function registrarPagoAnual(data) {
+  return await sendPost("registrar_pago_anual", data);
+}
+
+export async function sincronizarResumenSheet(data) {
+  return await sendPost("sincronizar_resumen", data);
+}
+
 export async function registrarEgreso(data) {
   return await sendPost("registrar_egreso", data);
 }

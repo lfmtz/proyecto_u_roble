@@ -34,8 +34,16 @@ export function getMonthNumber(monthName) {
   return idx >= 0 ? idx + 1 : 1;
 }
 
-export function getStatusBadge(estado) {
+export function getStatusBadge(estado, esAnual = false) {
   const status = String(estado || '').toLowerCase().trim();
+  if (status === 'pagado' && esAnual) {
+    return {
+      label: 'Pagado (Anual)',
+      bg: 'bg-teal-50 text-teal-800 border-teal-200',
+      badge: 'bg-teal-500',
+      text: 'text-teal-800'
+    };
+  }
   switch (status) {
     case 'pagado':
       return {

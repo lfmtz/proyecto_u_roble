@@ -49,7 +49,7 @@ export default function VecinosDirectory() {
       {/* Grid de Departamentos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {vecinosList.map((vecino) => {
-          const badge = getStatusBadge(vecino.estado);
+          const badge = getStatusBadge(vecino.estado, vecino.es_anual);
           const rawVecino = data.vecinos.find(v => String(v.depto).trim() === String(vecino.depto).trim()) || {};
           const telefonoStr = String(vecino.telefono || rawVecino.telefono || '');
           const telefonoLimpio = telefonoStr.replace(/\D/g, '');

@@ -235,7 +235,7 @@ export default function Dashboard() {
 
           <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
             {monthlyMovimientos.map((item) => {
-              const badge = getStatusBadge(item.estado);
+              const badge = getStatusBadge(item.estado, item.es_anual);
               return (
                 <div
                   key={item.depto}
@@ -251,7 +251,13 @@ export default function Dashboard() {
                         {item.nombre || `Departamento ${item.depto}`}
                       </div>
                       <div className="text-xs text-slate-500 font-mono-numbers">
-                        Cuota: {formatCurrency(item.cuota)} • Pagado: {formatCurrency(item.monto_pagado)}
+                        {item.es_cubierto_anual ? (
+                          <span className="text-teal-700 font-medium">
+                            Cubierto por Pago Anual • Ingreso este mes: $0.00
+                          </span>
+                        ) : (
+                          <>Cuota: {formatCurrency(item.cuota)} • Pagado: {formatCurrency(item.monto_pagado)}</>
+                        )}
                       </div>
                     </div>
                   </div>

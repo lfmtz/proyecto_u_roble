@@ -37,20 +37,161 @@ function doPost(e) {
 
     let targetSheet;
 
-    // 1. REGISTRAR PAGO
-    if (action === "registrar_pago") {
+    // 1. REGISTRAR / ABONAR / ACTUALIZAR PAGO (SIN DUPLICAR MES)
+    if (action === "registrar_pago" || action === "actualizar_pago_mes") {
       targetSheet = ss.getSheetByName("movimientos");
-      const rowData = [
-        data.depto,
-        Number(data.anio),
-        Number(data.mes_num),
-        data.mes,
-        Number(data.cuota || 150),
-        Number(data.monto_pagado),
-        data.estado,
-        data.fuente || "App Web"
+      const sData = targetSheet.getDataRange().getValues();
+      const targetDepto = String(data.depto).trim();
+      const targetAnio = Number(data.anio);
+      const targetMesNum = Number(data.mes_num);
+      const targetMesName = String(data.mes || "").trim().toLowerCase();
+      const cuota = Number(data.cuota || 150);
+      const montoInput = Number(data.monto_pagado || 0);
+      const modoRegistro = data.modo_registro || (action === "actualizar_pago_mes" ? "reemplazar" : "sumar");
+
+      const matchingRows = [];
+      let existingPaidSum = 0;
+
+      for (let i = 1; i < sData.length; i++) {
+        const rDepto = String(sData[i][0]).trim();
+        const rAnio = Number(sData[i][1]);
+        const rMesNum = Number(sData[i][2]);
+        const rMesName = String(sData[i][3] || "").trim().toLowerCase();
+
+        if (
+          rDepto === targetDepto &&
+          rAnio === targetAnio &&
+          (rMesNum === targetMesNum || (targetMesName && rMesName === targetMesName))
+        ) {
+          matchingRows.push(i + 1); // 1-based row index in Sheet
+          existingPaidSum += Number(sData[i][5] || 0);
+        }
+      }
+
+      if (matchingRows.length > 0) {
+        let finalMonto = modoRegistro === "reemplazar"
+          ? montoInput
+          : existingPaidSum + montoInput;
+
+        // Si ya existían filas duplicadas (ej. $20 + $150) y ahora se abona o corrige,
+        // o si la suma supera la cuota por haber re-capturado el total completo ($150) sobre un parcial previo,
+        // respetamos el modo elegido por el usuario.
+        let finalEstado = "pendiente";
+        if (finalMonto >= cuota && cuota > 0) {
+          finalEstado = "pagado";
+        } else if (finalMonto > 0) {
+          finalEstado = "parcial";
+        }
+
+        const primaryRow = matchingRows[0];
+        targetSheet.getRange(primaryRow, 1, 1, 8).setValues([[
+          data.depto,
+          targetAnio,
+          targetMesNum,
+          data.mes,
+          cuota,
+          finalMonto,
+          finalEstado,
+          data.fuente || "App Web"
+        ]]);
+
+        // Eliminar filas duplicadas sobrantes del mismo depto + año + mes (de abajo hacia arriba)
+        for (let j = matchingRows.length - 1; j >= 1; j--) {
+          targetSheet.deleteRow(matchingRows[j]);
+        }
+      } else {
+        let finalEstado = "pendiente";
+        if (montoInput >= cuota && cuota > 0) {
+          finalEstado = "pagado";
+        } else if (montoInput > 0) {
+          finalEstado = "parcial";
+        }
+
+        const rowData = [
+          data.depto,
+          targetAnio,
+          targetMesNum,
+          data.mes,
+          cuota,
+          montoInput,
+          finalEstado,
+          data.fuente || "App Web"
+        ];
+        targetSheet.appendRow(rowData);
+      }
+
+    // 1.B REGISTRAR PAGO ANUAL (12 MESES CUBIERTOS)
+    } else if (action === "registrar_pago_anual") {
+      targetSheet = ss.getSheetByName("movimientos");
+      const sData = targetSheet.getDataRange().getValues();
+      const targetDepto = String(data.depto).trim();
+      const targetAnio = Number(data.anio);
+      const mesCobro = Number(data.mes_cobro || 1);
+      const cuotaMensual = Number(data.cuota || 150);
+      const mesesNombres = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
       ];
-      targetSheet.appendRow(rowData);
+
+      // Eliminar registros previos del mismo depto y año para escribir los 12 meses limpios
+      for (let i = sData.length - 1; i >= 1; i--) {
+        if (String(sData[i][0]).trim() === targetDepto && Number(sData[i][1]) === targetAnio) {
+          targetSheet.deleteRow(i + 1);
+        }
+      }
+
+      for (let m = 1; m <= 12; m++) {
+        const esMesDeCobro = m === mesCobro;
+        const fuenteTag = esMesDeCobro
+          ? `Pago Anual (Cobrado en ${mesesNombres[mesCobro - 1]})`
+          : `Cubierto por Pago Anual`;
+
+        targetSheet.appendRow([
+          data.depto,
+          targetAnio,
+          m,
+          mesesNombres[m - 1],
+          cuotaMensual,
+          cuotaMensual,
+          "pagado",
+          fuenteTag
+        ]);
+      }
+
+    // 1.C SINCRONIZAR / GUARDAR RESUMEN PARA ENTREGA DE ADMINISTRACIÓN EN SHEETS
+    } else if (action === "sincronizar_resumen") {
+      let resumenSheet = ss.getSheetByName("resumen_entrega");
+      if (!resumenSheet) {
+        resumenSheet = ss.insertSheet("resumen_entrega");
+      } else {
+        resumenSheet.clear();
+      }
+
+      resumenSheet.appendRow(["EDIFICIO ROBLE 30 A 2 - RESUMEN OFICIAL DE ADMINISTRACIÓN"]);
+      resumenSheet.appendRow(["Período:", `${data.mes} ${data.anio}`, "Fecha de actualización:", new Date().toLocaleString("es-MX")]);
+      resumenSheet.appendRow([]);
+      resumenSheet.appendRow(["MÉTRICAS DEL MES", "MONTO / VALOR"]);
+      resumenSheet.appendRow(["Total Ingresos Cobrados en el Mes", Number(data.totalIngresos || 0)]);
+      resumenSheet.appendRow(["Total Egresos del Mes", Number(data.totalEgresos || 0)]);
+      resumenSheet.appendRow(["Saldo Neto del Mes", Number(data.saldoMes || 0)]);
+      resumenSheet.appendRow(["Departamentos al Corriente", `${data.pagados} de ${data.totalDeptos} (${data.porcCobranza}%)`]);
+      if (data.proyectoNombre) {
+        resumenSheet.appendRow([`Proyecto Activo (${data.proyectoNombre}) - Saldo Disponible`, Number(data.proyectoSaldo || 0)]);
+      }
+      resumenSheet.appendRow([]);
+      resumenSheet.appendRow(["DESGLOSE POR DEPARTAMENTO", "", "", ""]);
+      resumenSheet.appendRow(["Depto", "Residente", "Modalidad", "Abonado en el Mes", "Estado del Mes"]);
+
+      const deptos = data.departamentos || [];
+      deptos.forEach(d => {
+        resumenSheet.appendRow([
+          d.depto,
+          d.nombre,
+          d.es_anual ? "Pago Anual" : "Pago Mensual",
+          Number(d.ingreso_efectivo_mes || 0),
+          d.estado
+        ]);
+      });
 
     // 2. REGISTRAR EGRESO
     } else if (action === "registrar_egreso") {

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, getMonthName } from '../utils/formatters';
-import { Printer, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Printer, ArrowLeft, FileSpreadsheet, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function MonthlyStatementPrint() {
   const { 
@@ -10,10 +10,13 @@ export default function MonthlyStatementPrint() {
     monthlyMovimientos, 
     monthlyEgresos, 
     metrics, 
-    fondoMetrics,
     activeProjectStats,
+    handleSincronizarResumenSheet,
     setActiveTab 
   } = useApp();
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   const mesNombre = getMonthName(selectedMonth);
   const fechaHoy = new Date().toLocaleDateString('es-MX', {
@@ -24,6 +27,21 @@ export default function MonthlyStatementPrint() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSyncToSheet = async () => {
+    try {
+      setSyncing(true);
+      setSyncSuccess(false);
+      await handleSincronizarResumenSheet();
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 4000);
+    } catch (err) {
+      console.error('Error al sincronizar resumen:', err);
+      alert('Para guardar la pestaña resumen_entrega en Google Sheets, asegúrate de haber actualizado el código de Code.gs en Extensiones > Apps Script.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -41,17 +59,43 @@ export default function MonthlyStatementPrint() {
           </button>
           <div>
             <h2 className="text-sm font-bold text-slate-900">Vista Imprimible Oficial (Tamaño Carta)</h2>
-            <p className="text-xs text-slate-500">Diseñado para imprimir y colocar en el pizarrón de avisos</p>
+            <p className="text-xs text-slate-500">Diseñado para imprimir en el pizarrón o respaldar en Google Sheets para entrega de administración</p>
           </div>
         </div>
 
-        <button
-          onClick={handlePrint}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
-        >
-          <Printer className="w-4 h-4" />
-          Imprimir / Guardar como PDF
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSyncToSheet}
+            disabled={syncing}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs sm:text-sm font-semibold transition-all disabled:opacity-50"
+            title="Guarda este corte mensual en una pestaña 'resumen_entrega' dentro de tu Google Sheet"
+          >
+            {syncing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                Guardando en Sheet...
+              </>
+            ) : syncSuccess ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ¡Reflejado en Sheets!
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                Reflejar Resumen en Sheets
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold shadow-sm transition-all"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir / Guardar PDF
+          </button>
+        </div>
       </div>
 
       {/* Contenedor Hoja Tamaño Carta (816 x 1056 px) */}
@@ -118,86 +162,59 @@ export default function MonthlyStatementPrint() {
             {/* Tablas lado a lado */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
               
-              {/* Tabla de 20 Departamentos (7 columnas) */}
+              {/* Tabla de 20 Departamentos (7 columnas) - Sin columna Previo/Estatus que cause molestia */}
               <div className="md:col-span-7">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-bold text-[10px] uppercase tracking-wider text-slate-800">
                     Desglose de Cuotas por Departamento
                   </h3>
-                  <span className="text-[9px] text-slate-500 font-medium">Cuota: $150.00</span>
+                  <span className="text-[9px] text-slate-500 font-medium">Cuota Mensual: $150.00</span>
                 </div>
 
                 <table className="w-full border-collapse border border-slate-300 text-[10px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 text-[9px]">
-                      <th className="border border-slate-300 px-1 py-1 text-center font-bold w-9">Depto</th>
-                      <th className="border border-slate-300 px-1.5 py-1 text-left font-bold">Residente</th>
-                      <th className="border border-slate-300 px-1.5 py-1 text-right font-bold w-14">Abono</th>
-                      <th className="border border-slate-300 px-1 py-1 text-center font-bold w-16">Estado</th>
-                      <th className="border border-slate-300 px-1 py-1 text-center font-bold w-14" title="Adeudos anteriores">Previo</th>
+                      <th className="border border-slate-300 px-1.5 py-1 text-center font-bold w-12">Depto</th>
+                      <th className="border border-slate-300 px-2 py-1 text-left font-bold">Residente</th>
+                      <th className="border border-slate-300 px-2 py-1 text-right font-bold w-28">Abono en el Mes</th>
                     </tr>
                   </thead>
                   <tbody>
                     {monthlyMovimientos.map((d) => (
                       <tr key={d.depto} className="hover:bg-slate-50">
-                        <td className="border border-slate-300 px-1 py-0.5 text-center font-bold font-mono-numbers text-[10px]">
+                        <td className="border border-slate-300 px-1.5 py-0.5 text-center font-bold font-mono-numbers text-[10px]">
                           {d.depto}
                         </td>
-                        <td className="border border-slate-300 px-1.5 py-0.5 truncate max-w-[125px] text-[10px]">
+                        <td className="border border-slate-300 px-2 py-0.5 truncate max-w-[180px] text-[10px]">
                           {d.nombre || '-'}
                         </td>
-                        <td className="border border-slate-300 px-1.5 py-0.5 text-right font-mono-numbers font-semibold text-[10px]">
-                          {formatCurrency(d.monto_pagado)}
-                        </td>
-                        <td className="border border-slate-300 px-1 py-0.5 text-center font-semibold">
-                          <span className={`inline-block px-1 rounded text-[8.5px] uppercase font-bold ${
-                            d.estado === 'pagado' ? 'text-emerald-700' :
-                            d.estado === 'parcial' ? 'text-amber-700' :
-                            'text-rose-700'
-                          }`}>
-                            {d.estado}
-                          </span>
-                        </td>
-                        <td className="border border-slate-300 px-1 py-0.5 text-center font-semibold text-[8.5px]">
-                          {d.tiene_adeudo_anterior ? (
-                            <span 
-                              className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-50 font-bold px-1 rounded border border-amber-200"
-                              title={`Adeuda ${formatCurrency(d.adeudo_anterior)} de meses anteriores`}
-                            >
-                              ⚠️ Adeudo
+                        <td className="border border-slate-300 px-2 py-0.5 text-right font-mono-numbers font-semibold text-[10px]">
+                          {d.es_cubierto_anual ? (
+                            <span className="text-teal-800 font-bold text-[9px] uppercase">
+                              Pago Anual
                             </span>
                           ) : (
-                            <span className="text-slate-400 font-normal">Al día</span>
+                            formatCurrency(d.ingreso_efectivo_mes !== undefined ? d.ingreso_efectivo_mes : d.monto_pagado)
                           )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 font-bold text-[10px]">
+                      <td colSpan={2} className="border border-slate-300 px-2 py-1 text-right">
+                        Total Ingresos del Mes:
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1 text-right font-mono-numbers text-emerald-800">
+                        {formatCurrency(metrics.totalIngresos)}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
 
-                {/* Código de Colores y Simbología */}
-                <div className="mt-2.5 p-2 bg-slate-50 border border-slate-200 rounded text-[8.5px] text-slate-700 space-y-1">
-                  <div className="font-bold uppercase tracking-wider text-slate-900 text-[9px] mb-0.5">
-                    Simbología y Código de Colores:
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                      <span><strong>PAGADO:</strong> Cuota del mes 100% cubierta.</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
-                      <span><strong>PARCIAL:</strong> Cubrió solo parte del mes.</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
-                      <span><strong>PENDIENTE:</strong> Sin pago en el mes actual.</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-amber-600 font-bold">⚠️ Adeudo:</span>
-                      <span>Arrastra saldo de meses anteriores.</span>
-                    </div>
-                  </div>
+                {/* Nota informativa discreta de pagos anuales */}
+                <div className="mt-2 p-2 bg-slate-50 border border-slate-200 rounded text-[8.5px] text-slate-600">
+                  <strong>Nota sobre Pago Anual:</strong> Los departamentos con modalidad de <strong>Pago Anual</strong> se encuentran cubiertos durante todo el año; su aportación se contabilizó íntegramente en el mes en que realizaron su pago anual, por lo que no se duplica en la suma de ingresos en efectivo de este mes.
                 </div>
               </div>
 
@@ -283,7 +300,7 @@ export default function MonthlyStatementPrint() {
                 {/* Nota Institucional */}
                 <div className="p-2 bg-slate-50 border border-slate-200 rounded text-[8.5px] text-slate-600 leading-tight">
                   <p className="font-bold text-slate-700 uppercase mb-0.5">Nota de la Administración:</p>
-                  Agradecemos a todos los vecinos su puntualidad. El pago puntual de los servicios de recolección de basura, limpieza y bombeo de agua depende del cumplimiento de las cuotas de los 20 departamentos. En caso de dudas con saldos anteriores, favor de comunicarse con la administración.
+                  Agradecemos a todos los vecinos su puntualidad. El pago puntual de los servicios de recolección de basura, limpieza y bombeo de agua depende del cumplimiento de las cuotas de los 20 departamentos. En caso de dudas con sus aportaciones, favor de comunicarse con la administración.
                 </div>
               </div>
 

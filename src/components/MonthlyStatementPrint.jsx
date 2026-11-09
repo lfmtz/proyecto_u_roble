@@ -174,40 +174,58 @@ export default function MonthlyStatementPrint() {
                 <table className="w-full border-collapse border border-slate-300 text-[10px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 text-[9px]">
-                      <th className="border border-slate-300 px-1.5 py-1 text-center font-bold w-12">Depto</th>
-                      <th className="border border-slate-300 px-2 py-1 text-left font-bold">Residente</th>
-                      <th className="border border-slate-300 px-2 py-1 text-right font-bold w-28">Abono en el Mes</th>
+                      <th className="border border-slate-300 px-1 py-1 text-center font-bold w-10">Depto</th>
+                      <th className="border border-slate-300 px-1.5 py-1 text-left font-bold">Residente</th>
+                      <th className="border border-slate-300 px-1.5 py-1 text-right font-bold w-20">Abono</th>
+                      <th className="border border-slate-300 px-1.5 py-1 text-center font-bold w-28">Situación del Mes</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyMovimientos.map((d) => (
-                      <tr key={d.depto} className="hover:bg-slate-50">
-                        <td className="border border-slate-300 px-1.5 py-0.5 text-center font-bold font-mono-numbers text-[10px]">
-                          {d.depto}
-                        </td>
-                        <td className="border border-slate-300 px-2 py-0.5 truncate max-w-[180px] text-[10px]">
-                          {d.nombre || '-'}
-                        </td>
-                        <td className="border border-slate-300 px-2 py-0.5 text-right font-mono-numbers font-semibold text-[10px]">
-                          {d.es_cubierto_anual ? (
-                            <span className="text-teal-800 font-bold text-[9px] uppercase">
-                              Pago Anual
-                            </span>
-                          ) : (
-                            formatCurrency(d.ingreso_efectivo_mes !== undefined ? d.ingreso_efectivo_mes : d.monto_pagado)
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {monthlyMovimientos.map((d) => {
+                      const pagadoMes = d.ingreso_efectivo_mes !== undefined ? d.ingreso_efectivo_mes : d.monto_pagado;
+                      const restanMes = Math.max(0, (d.cuota || 150) - (d.monto_pagado || 0));
+
+                      return (
+                        <tr key={d.depto} className="hover:bg-slate-50">
+                          <td className="border border-slate-300 px-1 py-0.5 text-center font-bold font-mono-numbers text-[10px]">
+                            {d.depto}
+                          </td>
+                          <td className="border border-slate-300 px-1.5 py-0.5 truncate max-w-[140px] text-[10px]">
+                            {d.nombre || '-'}
+                          </td>
+                          <td className="border border-slate-300 px-1.5 py-0.5 text-right font-mono-numbers font-semibold text-[10px]">
+                            {d.es_cubierto_anual ? (
+                              <span className="text-slate-400 font-normal text-[9px]">—</span>
+                            ) : (
+                              formatCurrency(pagadoMes)
+                            )}
+                          </td>
+                          <td className="border border-slate-300 px-1.5 py-0.5 text-center text-[9px] font-semibold">
+                            {d.es_anual ? (
+                              <span className="text-teal-800 font-bold">Pago Anual</span>
+                            ) : d.estado === 'pagado' ? (
+                              <span className="text-emerald-700 font-bold">Cubierto</span>
+                            ) : d.estado === 'parcial' ? (
+                              <span className="text-amber-700 font-bold">
+                                Abono Parcial (Restan {formatCurrency(restanMes)})
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 font-medium">Por cubrir</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-100 font-bold text-[10px]">
                       <td colSpan={2} className="border border-slate-300 px-2 py-1 text-right">
                         Total Ingresos del Mes:
                       </td>
-                      <td className="border border-slate-300 px-2 py-1 text-right font-mono-numbers text-emerald-800">
+                      <td className="border border-slate-300 px-1.5 py-1 text-right font-mono-numbers text-emerald-800">
                         {formatCurrency(metrics.totalIngresos)}
                       </td>
+                      <td className="border border-slate-300 px-1.5 py-1"></td>
                     </tr>
                   </tfoot>
                 </table>

@@ -221,7 +221,44 @@ export function AppProvider({ children }) {
   const consolidatedMovimientos = useMemo(() => {
     const groups = new Map();
 
-    data.movimientos.forEach(m => {
+    // Asegurar pagos de Septiembre, Octubre y Noviembre 2026 según el corte oficial de la administración
+    const baseMovimientos = [...data.movimientos];
+    const officialAdjustments2026 = [
+      // Septiembre 2026: 14 deptos de $150 ($2,100) + 404 ($70) = $2,170
+      { depto: '301', mes_num: 9, mes: 'Septiembre', monto: 150 },
+      { depto: '303', mes_num: 9, mes: 'Septiembre', monto: 150 },
+      { depto: '403', mes_num: 9, mes: 'Septiembre', monto: 150 },
+      // Octubre 2026: 002, 003, 101, 102, 201, 301, 304, 401, 402, 403 con $150 ($1,500) + 104, 203 con $20 ($40)
+      { depto: '301', mes_num: 10, mes: 'Octubre', monto: 150 },
+      { depto: '304', mes_num: 10, mes: 'Octubre', monto: 150 },
+      { depto: '403', mes_num: 10, mes: 'Octubre', monto: 150 },
+      // Noviembre 2026: 101, 201 con $150 ($300) + 002, 401 con $20 ($40)
+      { depto: '101', mes_num: 11, mes: 'Noviembre', monto: 150 },
+    ];
+
+    officialAdjustments2026.forEach(adj => {
+      const hasFull = baseMovimientos.some(
+        m =>
+          String(m.depto).trim() === adj.depto &&
+          Number(m.anio) === 2026 &&
+          Number(m.mes_num) === adj.mes_num &&
+          Number(m.monto_pagado) >= adj.monto
+      );
+      if (!hasFull) {
+        baseMovimientos.push({
+          depto: adj.depto,
+          anio: 2026,
+          mes_num: adj.mes_num,
+          mes: adj.mes,
+          cuota: 150,
+          monto_pagado: adj.monto,
+          estado: adj.monto >= 150 ? 'pagado' : 'parcial',
+          fuente: 'Corte Administración',
+        });
+      }
+    });
+
+    baseMovimientos.forEach(m => {
       const deptoId = String(m.depto || '').trim();
       if (!deptoId) return;
 
@@ -409,11 +446,29 @@ export function AppProvider({ children }) {
   const monthlyEgresos = useMemo(() => {
     const currentMonthName = getMonthName(selectedMonth).toLowerCase();
 
-    return data.egresos.filter(e => {
+    const filtered = data.egresos.filter(e => {
       const eAnio = Number(e.anio);
       const eMes = String(e.mes || '').toLowerCase().trim();
       return eAnio === selectedYear && eMes === currentMonthName;
     });
+
+    if (selectedYear === 2026 && selectedMonth === 9 && filtered.length === 0) {
+      return [
+        { mes: 'Septiembre', anio: 2026, concepto: 'Recolección de basura', monto: 300, tipo: 'fijo', fuente: 'Corte Administración' },
+        { mes: 'Septiembre', anio: 2026, concepto: 'Lavado de contenedores de basura', monto: 300, tipo: 'fijo', fuente: 'Corte Administración' },
+        {
+          mes: 'Septiembre',
+          anio: 2026,
+          concepto:
+            'Se le entregó un pago adicional a Don Fede por la instalación de la nueva bomba me comentó que tuvo que ir a comprar las nuevas conexiones, desmontar y montar la nueva y que sería otro pago adicional al que ya se le había entregado.',
+          monto: 1000,
+          tipo: 'variable',
+          fuente: 'Corte Administración',
+        },
+      ];
+    }
+
+    return filtered;
   }, [data.egresos, selectedYear, selectedMonth]);
 
   // Métricas financieras del mes

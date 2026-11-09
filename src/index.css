@@ -42,7 +42,11 @@
     width: 100% !important;
     max-width: 816px !important;
     margin: 0 auto !important;
-    page-break-after: avoid;
     page-break-inside: avoid;
+  }
+
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }
